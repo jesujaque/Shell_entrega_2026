@@ -15,6 +15,7 @@ To compile and run the program:
 **/
 
 #include "job_control.h"   // remember to compile with module job_control.c 
+#include <string.h>
 
 #define MAX_LINE 256 /* 256 chars per line, per command, should be enough. */
 
@@ -33,9 +34,15 @@ int main(void)
 	char *file_in, *file_out; 	/* file names for redirection */
 	int info;
 	char* estado;
+	int gpid;
+	int gpid_hijo;
+	int gpid_padre;
+
+
 
 	while (1)   /* Program terminates normally inside get_command() after ^D is typed*/
 	{   		
+		ignore_terminal_signals();
 		printf("COMMAND->");
 		fflush(stdout);
 		get_command(inputBuffer, MAX_LINE, args, &background);  /* get next command */
@@ -51,12 +58,20 @@ int main(void)
 			 (5) loop returns to get_commnad() function
 		*/
 
+		if(strcmp(args[0],"cd")==0) {
+			chdir(args[1]);
+			continue;
+		}
+
+
 		pid_fork=fork();
 
 		if(pid_fork>0){//Si es !=0 es padre y si es ==0 es hijo, en este caso abarcamos la zona del padre 
+			gpid_padre=setpgid(pid_fork,0);
 
 
 			if(background==0){//segundo plano
+				tcsetpgrp(STDIN_FILENO,pid_fork);  
 
 				waitpid(pid_fork,&status,WUNTRACED);
 
@@ -72,18 +87,44 @@ int main(void)
                     info = WSTOPSIG(status);
 					estado="Suspended";
                 }
+				//recuperamos el terminal para el grupo shell
+				tcsetpgrp(STDIN_FILENO,getpid());
 				
 				if(info!=255){//print a hacer: Foreground pid: 5615, command: ls, Exited, info: 0
 					printf("\nForeground pid: %d, command: %s, %s, info: %d\n",pid_fork,args[0],estado,info);
 				}
 
 			}else{
+				block_SIGCHLD();
+				job_list_add(pid_fork,args[0]);
+				unblock_SIGCHLD();
+
+				waitpid(getpid(),&status,WUNTRACED|WNOHANG);
+				if (WIFEXITED(status)) {
+                    info = WEXITSTATUS(status);
+					estado="Exited";
+                } 
+                else if (WIFSIGNALED(status)) {
+                    info = WTERMSIG(status);
+					estado="Signaled";
+                } 
+                else if (WIFSTOPPED(status)) {
+                    info = WSTOPSIG(status);
+					estado="Suspended";
+                }
+
 				//print a hacer: Background job running... pid: 5622, command: sleep
 				printf("\nBackground job running... pid: %d,command: %s\n",pid_fork,args[0]);
 
 			}
 			
 		}else{//aquí abarcamos la zona del hijo
+			gpid_hijo=setpgid(pid_fork,0);
+
+			if(background==0){
+				tcsetpgrp(STDIN_FILENO,getpid());
+			}
+			restore_terminal_signals();
 			execvp(args[0],args);
 			printf("\nError, command not found: %s\n",args[0]);
 			exit(-1);
