@@ -16,8 +16,35 @@ To compile and run the program:
 
 #include "job_control.h"   // remember to compile with module job_control.c 
 #include <string.h>
+job* lista;
 
 #define MAX_LINE 256 /* 256 chars per line, per command, should be enough. */
+
+void registrar_tarea_background(int pid,char* comando,job* lista){
+	block_SIGCHLD();
+	add_job(lista,new_job(pid,comando,BACKGROUND));
+	unblock_SIGCHLD();
+}
+
+void manejador_tarea_zombie(int signum){
+	int pid_hijo;
+	int status;
+	char* estado;
+	while((pid_hijo=waitpid(-1,&status,WUNTRACED|WNOHANG))>0){
+		block_SIGCHLD();
+		job* job_manejado=get_item_bypid(lista,pid_hijo);
+		if (WIFEXITED(status)) {
+			delete_job(lista,job_manejado);
+        } 
+        else if (WIFSIGNALED(status)) {
+			delete_job(lista,job_manejado);	
+		} 
+        else if (WIFSTOPPED(status)) {
+        	
+        }
+		unblock_SIGCHLD();
+	}
+}
 
 // -----------------------------------------------------------------------
 //                            MAIN          
@@ -34,14 +61,19 @@ int main(void)
 	char *file_in, *file_out; 	/* file names for redirection */
 	int info;
 	char* estado;
-	int gpid;
+	int gpid;	
 	int gpid_hijo;
 	int gpid_padre;
+	char* nombre_lista="Lista de tareas";
+	lista=new_list(nombre_lista);
 
 
 
 	while (1)   /* Program terminates normally inside get_command() after ^D is typed*/
-	{   		
+	{   	
+		lista=new_list(nombre_lista);
+		signal(SIGCHLD, manejador_tarea_zombie);
+
 		ignore_terminal_signals();
 		printf("COMMAND->");
 		fflush(stdout);
@@ -70,6 +102,7 @@ int main(void)
 			gpid_padre=setpgid(pid_fork,0);
 
 
+
 			if(background==0){//segundo plano
 				tcsetpgrp(STDIN_FILENO,pid_fork);  
 
@@ -91,27 +124,12 @@ int main(void)
 				tcsetpgrp(STDIN_FILENO,getpid());
 				
 				if(info!=255){//print a hacer: Foreground pid: 5615, command: ls, Exited, info: 0
-					printf("\nForeground pid: %d, command: %s, %s, info: %d\n",pid_fork,args[0],estado,info);
+					printf("\nForeground pid: %d,	 command: %s, %s, info: %d\n",pid_fork,args[0],estado,info);
 				}
 
-			}else{
-				block_SIGCHLD();
-				job_list_add(pid_fork,args[0]);
-				unblock_SIGCHLD();
-
-				waitpid(getpid(),&status,WUNTRACED|WNOHANG);
-				if (WIFEXITED(status)) {
-                    info = WEXITSTATUS(status);
-					estado="Exited";
-                } 
-                else if (WIFSIGNALED(status)) {
-                    info = WTERMSIG(status);
-					estado="Signaled";
-                } 
-                else if (WIFSTOPPED(status)) {
-                    info = WSTOPSIG(status);
-					estado="Suspended";
-                }
+			}else{//background
+				
+				registrar_tarea_background(pid_fork,args[0],lista);
 
 				//print a hacer: Background job running... pid: 5622, command: sleep
 				printf("\nBackground job running... pid: %d,command: %s\n",pid_fork,args[0]);
@@ -133,3 +151,4 @@ int main(void)
 
 	} // end while
 }
+
