@@ -124,7 +124,7 @@ int main(void)
 				tcsetpgrp(STDIN_FILENO,getpid());
 				
 				if(info!=255){//print a hacer: Foreground pid: 5615, command: ls, Exited, info: 0
-					printf("\nForeground pid: %d,	 command: %s, %s, info: %d\n",pid_fork,args[0],estado,info);
+					printf("Foreground pid: %d,	 command: %s, %s, info: %d\n",pid_fork,args[0],estado,info);
 				}
 
 			}else{//background
@@ -132,7 +132,7 @@ int main(void)
 				registrar_tarea_background(pid_fork,args[0],lista);
 
 				//print a hacer: Background job running... pid: 5622, command: sleep
-				printf("\nBackground job running... pid: %d,command: %s\n",pid_fork,args[0]);
+				printf("Background job running... pid: %d,command: %s\n",pid_fork,args[0]);
 
 			}
 			
@@ -144,7 +144,7 @@ int main(void)
 			}
 			restore_terminal_signals();
 			execvp(args[0],args);
-			printf("\nError, command not found: %s\n",args[0]);
+			printf("Error, command not found: %s\n",args[0]);
 			exit(-1);
 		}
 		
