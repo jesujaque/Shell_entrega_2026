@@ -16,11 +16,13 @@ To compile and run the program:
 
 #include "job_control.h"   // remember to compile with module job_control.c 
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 job* lista;
 
 #define MAX_LINE 256 /* 256 chars per line, per command, should be enough. */
 
-void registrar_tarea_background(int pid,char* comando,job* lista){
+void registrar_tarea_background(int pid,char* comando){
 	block_SIGCHLD();
 	add_job(lista,new_job(pid,comando,BACKGROUND));
 	unblock_SIGCHLD();
@@ -67,17 +69,18 @@ int main(void)
 	char* nombre_lista="Lista de tareas";
 	lista=new_list(nombre_lista);
 
+	signal(SIGCHLD, manejador_tarea_zombie);
 
 
 	while (1)   /* Program terminates normally inside get_command() after ^D is typed*/
 	{   	
-		lista=new_list(nombre_lista);
-		signal(SIGCHLD, manejador_tarea_zombie);
-
+		
 		ignore_terminal_signals();
 		printf("COMMAND->");
 		fflush(stdout);
 		get_command(inputBuffer, MAX_LINE, args, &background);  /* get next command */
+		char *file_in,*file_out;
+		parse_redirections(args,&file_in,&file_out);
 		
 		if(args[0]==NULL) continue;   // if empty command
 
@@ -93,6 +96,75 @@ int main(void)
 		if(strcmp(args[0],"cd")==0) {
 			chdir(args[1]);
 			continue;
+		}
+
+		if(strcmp(args[0],"jobs")==0){
+			print_job_list(lista);
+			continue;
+		}
+
+		if(strcmp(args[0],"fg")==0){
+			int pos;
+
+			if (args[1] == NULL) {
+				pos = 1; // Por defecto sacamos el primero
+			} else {
+				pos = atoi(args[1]); // Convertimos el texto a número
+			}
+
+			job* tarea=get_item_bypos(lista,pos);
+
+			if (tarea == NULL) {
+				printf("Error: Tarea no encontrada\n");
+				continue;	
+			}
+			tcsetpgrp(STDIN_FILENO,tarea->pgid);
+
+			tarea->state=FOREGROUND;
+
+			killpg(tarea->pgid,SIGCONT);
+
+			waitpid(tarea->pgid,&status,WUNTRACED);
+				if (WIFEXITED(status)) {
+                    info = WEXITSTATUS(status);
+					estado="Exited";
+					delete_job(lista,tarea);
+                } 
+                else if (WIFSIGNALED(status)) {
+                    info = WTERMSIG(status);
+					estado="Signaled";
+					delete_job(lista,tarea);
+
+                } 
+                else if (WIFSTOPPED(status)) {
+                    info = WSTOPSIG(status);
+					estado="Suspended";
+                }
+			tcsetpgrp(STDIN_FILENO,getpid());
+			continue;
+
+		}
+		if(strcmp(args[0],"bg")==0){
+			int pos;
+			if (args[1] == NULL) {
+				pos = 1; // Por defecto sacamos el primero
+			} else {
+				pos = atoi(args[1]); // Convertimos el texto a número
+			}
+
+			job* tarea=get_item_bypos(lista,pos);
+
+			if (tarea == NULL) {
+				printf("Error: Tarea no encontrada\n");
+				continue;	
+			}
+			tarea->state=BACKGROUND;
+			
+			killpg(tarea->pgid,SIGCONT);
+
+			continue;
+
+
 		}
 
 
@@ -119,6 +191,11 @@ int main(void)
                 else if (WIFSTOPPED(status)) {
                     info = WSTOPSIG(status);
 					estado="Suspended";
+					job* tarea=new_job(pid_fork,args[0],STOPPED);
+					block_SIGCHLD();
+	
+					add_job(lista,tarea);
+					unblock_SIGCHLD();
                 }
 				//recuperamos el terminal para el grupo shell
 				tcsetpgrp(STDIN_FILENO,getpid());
@@ -129,7 +206,7 @@ int main(void)
 
 			}else{//background
 				
-				registrar_tarea_background(pid_fork,args[0],lista);
+				registrar_tarea_background(pid_fork,args[0]);
 
 				//print a hacer: Background job running... pid: 5622, command: sleep
 				printf("Background job running... pid: %d,command: %s\n",pid_fork,args[0]);
@@ -139,10 +216,45 @@ int main(void)
 		}else{//aquí abarcamos la zona del hijo
 			gpid_hijo=setpgid(pid_fork,0);
 
+
 			if(background==0){
 				tcsetpgrp(STDIN_FILENO,getpid());
 			}
 			restore_terminal_signals();
+			if(!(file_out==NULL)){
+				// 1. Fabricar la caja (Abrir el archivo)
+				// O_WRONLY: Solo para escribir.
+				// O_CREAT: Si no existe, créalo.
+				// O_TRUNC: Si ya existe y tiene texto, bórralo y empieza de cero.
+				// 0644: Los permisos del archivo (Lectura/Escritura para el dueño, lectura para el resto).
+				int fd_out = open(file_out, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+				// Siempre hay que comprobar si hubo un error al abrir el archivo
+				if (fd_out < 0) {
+					perror("Error abriendo el archivo de salida");
+					exit(-1);
+				}
+
+				// 2. Cambiar el cable
+				// Le decimos al sistema: "Haz que el cable 1 (STDOUT_FILENO) apunte a mi archivo (fd_out)"
+				dup2(fd_out, STDOUT_FILENO);
+
+				// 3. Cerrar la tapa
+				// Ya hemos enchufado STDOUT_FILENO, así que el descriptor original ya no nos hace falta.
+				close(fd_out);
+			}
+			if(!(file_in==NULL)){
+				int fd_in = open(file_in, O_RDONLY, 0644);
+				if (fd_in < 0) {
+					perror("Error abriendo el archivo de entrada");
+					exit(-1);
+				}
+				dup2(fd_in, STDIN_FILENO);
+				close(fd_in);
+
+
+			}
+
 			execvp(args[0],args);
 			printf("Error, command not found: %s\n",args[0]);
 			exit(-1);
