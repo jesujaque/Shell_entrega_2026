@@ -203,22 +203,22 @@ int main(void)
 
 
 		// === INICIO AMPLIACIÓN EJ7 (Comando lanzabg) ===
-		// if(strcmp(args[0], "lanzabg") == 0) {
-		// 	//forzamos que vaya en segundo plano (simulamos el ampersand)
-		// 	background = 1; 
-		// 	
-		// 	//desplazamos todo el array hacia la izquierda para machacar la palabra "lanzabg"
-		// 	//asi el shell sigue funcionando normal creyendo que escribieron solo el comando a lanzar
-		// 	int i = 0;
-		// 	while(args[i + 1] != NULL) {
-		// 		args[i] = args[i + 1];
-		// 		i++;
-		// 	}
-		// 	args[i] = NULL;
-		// 	
-		// 	//si el usuario solo escribio "lanzabg" y dio enter, petaria, asi que lo reiniciamos
-		// 	if (args[0] == NULL) continue;
-		// }
+		if(strcmp(args[0], "lanzabg") == 0) {
+			//forzamos que vaya en segundo plano (simulamos el ampersand)
+			background = 1; 
+			
+			//desplazamos todo el array hacia la izquierda para machacar la palabra "lanzabg"
+			//asi el shell sigue funcionando normal creyendo que escribieron solo el comando a lanzar
+			int i = 0;
+			while(args[i + 1] != NULL) {
+				args[i] = args[i + 1];
+				i++;
+			}
+			args[i] = NULL;
+			
+			//si el usuario solo escribio "lanzabg" y dio enter, petaria, asi que lo reiniciamos
+			if (args[0] == NULL) continue;
+		}
 		// === FIN AMPLIACIÓN EJ7 ===
 
 

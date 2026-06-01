@@ -223,19 +223,19 @@ int main(void)
 
 
 		// === INICIO AMPLIACIÓN EJ6 (Comando exit) ===
-		// if (strcmp(args[0], "exit") == 0) {
-		// 	int exit_status = 0;
-		// 	
-		// 	//si hay un argumento despues de exit...
-		// 	if (args[1] != NULL) {
-		// 		//atoi es magico: si le pasas "123" te da 123, si le pasas "abc" o basura te da 0
-		// 		//que es exactamente lo que pide el guion para fallos
-		// 		exit_status = atoi(args[1]);
-		// 	}
-		// 	
-		// 	//la funcion exit de C termina el programa devolviendo ese valor al sistema operativo
-		// 	exit(exit_status);
-		// }
+		if (strcmp(args[0], "exit") == 0) {
+			int exit_status = 0;
+			
+			//si hay un argumento despues de exit...
+			if (args[1] != NULL) {
+				//atoi es magico: si le pasas "123" te da 123, si le pasas "abc" o basura te da 0
+				//que es exactamente lo que pide el guion para fallos
+				exit_status = atoi(args[1]);
+			}
+			
+			//la funcion exit de C termina el programa devolviendo ese valor al sistema operativo
+			exit(exit_status);
+		}
 		// === FIN AMPLIACIÓN EJ6 ===
 
 		

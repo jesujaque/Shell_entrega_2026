@@ -13,49 +13,14 @@ To compile and run the program:
 	(then type ^D to exit program)
 
 **/
-#define MAX_LINE 256 /* 256 chars per line, per command, should be enough. */
 
-#include "job_control.h"   // remember to compile with module job_control.c
+#include "job_control.h"   // remember to compile with module job_control.c 
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <ctype.h> 
-#include <math.h>
-#include <dirent.h>
-#include <stdio.h>
 job* lista;
 
-
-
-void traverse_proc(void) {
-    DIR *d; 
-    struct dirent *dir;
-    char buff[2048];
-    d = opendir("/proc");
-    if (d) {
-        while ((dir = readdir(d)) != NULL) {
-            sprintf(buff, "/proc/%s/stat", dir->d_name); 
-            FILE *fd = fopen(buff, "r");
-            if (fd){
-                long pid;     // pid
-                long ppid;    // ppid
-                char state;   // estado: R (runnable), S (sleeping), T(stopped), Z (zombie)
-
-                // La siguiente línea lee pid, state y ppid de /proc/<pid>/stat
-                if(fscanf(fd, "%ld %s %c %ld", &pid, buff, &state, &ppid)==4){
-					if(state=='Z'){
-						printf("%ld\n",pid);
-					}	
-				
-				}
-				
-                fclose(fd);
-				
-            }
-        }
-        closedir(d);
-    }
-}
+#define MAX_LINE 256 /* 256 chars per line, per command, should be enough. */
 
 void registrar_tarea_background(int pid,char* comando){
 	block_SIGCHLD();
@@ -63,53 +28,24 @@ void registrar_tarea_background(int pid,char* comando){
 	unblock_SIGCHLD();
 }
 
-/* void manejador_tarea_zombie(int signum){
+void manejador_tarea_zombie(int signum){
 	int pid_hijo;
 	int status;
 	char* estado;
 	while((pid_hijo=waitpid(-1,&status,WUNTRACED|WNOHANG))>0){
 		block_SIGCHLD();
 		job* job_manejado=get_item_bypid(lista,pid_hijo);
-		if(job_manejado!=NULL){
-			if (WIFEXITED(status)){
-				delete_job(lista,job_manejado);
-			} 
-			else if (WIFSIGNALED(status)) {
-				delete_job(lista,job_manejado);	
-			} 
-		}
-		
-        
+		if (WIFEXITED(status)) {
+			delete_job(lista,job_manejado);
+        } 
+        else if (WIFSIGNALED(status)) {
+			delete_job(lista,job_manejado);	
+		} 
+        else if (WIFSTOPPED(status)) {
+        	
+        }
 		unblock_SIGCHLD();
 	}
-} */
-
-void manejador_tarea_zombie(int signum){
-	int pid_hijo;
-	int status;
-	
-	block_SIGCHLD();
-	int i=1;
-	while(i <= list_size(lista)){
-		job* tarea=get_item_bypos(lista,i);
-
-		if(tarea!=NULL){
-			pid_hijo = waitpid(tarea->pgid, &status, WUNTRACED | WNOHANG);
-            
-            if (pid_hijo > 0) { // Si el proceso ha cambiado de estado
-                if (WIFEXITED(status) || WIFSIGNALED(status)) {
-                    delete_job(lista, tarea);
-                    // Como acabamos de borrar el elemento 'i', el siguiente elemento 
-                    // de la lista cae en esta misma posición. Por tanto, no sumamos 'i'.
-                    continue; 
-                }
-            }
-		}
-		i++;
-	}
-	
-	unblock_SIGCHLD();
-	
 }
 
 // -----------------------------------------------------------------------
@@ -156,105 +92,6 @@ int main(void)
 			 (4) Shell shows a status message for processed command 
 			 (5) loop returns to get_commnad() function
 		*/
-
-		if (strcmp(args[0], "bgteam") == 0) {
-			
-			// 1. Comprobamos que existan ambos argumentos
-			if (args[1] == NULL || args[2] == NULL) {
-				printf("El comando bgteam requiere dos argumentos\n");
-				continue;
-			}
-
-			// 2. Comprobamos que N sea estrictamente un número (positivo)
-			int es_valido = 1;
-			int i=0;
-			while(args[1][i] != '\0' && es_valido == 1){
-				if(!isdigit(args[1][i]) ){
-					es_valido = 0; // Si hay letras, puntos o símbolos (como el -), no es válido
-				}
-				i++;
-			}
-
-			if (!es_valido) {
-				continue; // Se ignora silenciosamente
-			}
-
-			// 3. Convertimos el texto a número y comprobamos que no sea 0
-			int n_jobs = atoi(args[1]);
-			if (n_jobs <= 0) {
-				continue; // Se ignora silenciosamente
-			}
-
-			// 4. Lanzamos los procesos hijos en bucle
-		
-			for (int i = 0; i < n_jobs; i++) {
-				int pid_hijo_bg = fork();
-
-				if (pid_hijo_bg == 0) {
-					// --- ZONA DEL HIJO ---
-					setpgid(0, 0); // Se crea su propio grupo (esencial para background)
-					restore_terminal_signals(); // Le devolvemos el comportamiento normal ante Ctrl+C
-					
-					// EL TRUCO DE MAGIA: Le pasamos &args[2] al execvp.
-					// Esto engaña a execvp para que piense que el array empieza en "xclock" y no en "bgteam"
-					execvp(args[2], &args[2]);
-					
-					// Si llega aquí, el comando que pidió lanzar no existe
-					printf("Error, command not found: %s\n", args[2]);
-					exit(-1);
-				} 
-				else if (pid_hijo_bg > 0) {
-					// --- ZONA DEL PADRE ---
-					setpgid(pid_hijo_bg, 0); // Para evitar condiciones de carrera
-					
-					// Guardamos al hijo en nuestra libreta de jobs
-					registrar_tarea_background(pid_hijo_bg, args[2]);
-					
-					// Imprimimos el mensaje calcado al del background normal
-					printf("Background job running... pid: %d,command: %s\n", pid_hijo_bg, args[2]);
-				}
-			}
-			
-			// Una vez lanzados todos, volvems a pedir comando
-			continue;
-		}
-
-		if(strcmp(args[0],"zjobs")==0){
-			block_SIGCHLD();
-			traverse_proc();
-			unblock_SIGCHLD();
-
-			continue;
-		}
-	
-		
-		if(strcmp(args[0],"deljob")==0) {
-			block_SIGCHLD();
-
-			job* tarea=get_item_bypos(lista,1);
-			if (tarea == NULL) {
-				printf("No hay trabajo actual\n");
-				unblock_SIGCHLD();
-
-				continue;
-			}else{
-				if(tarea->state==BACKGROUND){
-					printf("Borrando trabajo actual de la lista de jobs: PID=%d command=%s\n", tarea->pgid, tarea->command);
-
-					delete_job(lista,tarea);
-					unblock_SIGCHLD();
-					continue;
-				}
-				
-				if(tarea->state==STOPPED){
-					printf("No se permiten borrar trabajos en segundo plano suspendidos\n");
-					unblock_SIGCHLD();
-					continue;
-				}
-			}
-			
-			
-		}
 
 		if(strcmp(args[0],"cd")==0) {
 			chdir(args[1]);
