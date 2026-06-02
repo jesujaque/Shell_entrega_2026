@@ -157,21 +157,7 @@ int main(void)
 			 (5) loop returns to get_commnad() function
 		*/
 
-		if(strcmp(args[0],"bgteam")==0){
-			if(args[1]==NULL || args[2]==NULL){
-				printf("El comando bgteam requiere dos argumentos");
-				continue;
-			}
-
-			
-			if(isdigit(args[1]) && args[1]>0){
-
-				int i=args[1];
-				if(i==trunc(i)){
-					
-				}
-			}
-		}
+	
 
 		if(strcmp(args[0],"zjobs")==0){
 			block_SIGCHLD();

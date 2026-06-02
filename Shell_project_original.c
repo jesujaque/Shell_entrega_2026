@@ -93,6 +93,25 @@ int main(void)
 			 (5) loop returns to get_commnad() function
 		*/
 
+		// PRACTICA AMPLIACION EJ3
+		// if(strcmp(args[0],"deljob")==0){
+		// 	job* ultimo_job=get_item_bypos(lista,1);
+		// 	if(ultimo_job == NULL || empty_list(lista)){
+		// 		printf("No hay trabajo actual\n");
+		// 	}else{
+		// 		if(ultimo_job->state==BACKGROUND){
+		// 			printf("Borrando trabajo actual de la lista de jobs: PID=%d command=%s\n",ultimo_job->pgid,ultimo_job->command);
+		// 			block_SIGCHLD();
+		// 			delete_job(lista,ultimo_job);
+		// 			unblock_SIGCHLD();
+		// 		}else if(ultimo_job->state==STOPPED){
+		// 			printf("No se permiten borrar trabajos en segundo plano suspendidos\n");
+		// 		}
+		// 	}
+		// 	continue;
+		// }
+		// final PRACTICA AMPLIACION EJ3
+
 		if(strcmp(args[0],"cd")==0) {
 			chdir(args[1]);
 			continue;

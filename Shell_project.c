@@ -225,14 +225,14 @@ int main(void)
 		// === INICIO AMPLIACIÓN EJ6 (Comando exit) ===
 		// if (strcmp(args[0], "exit") == 0) {
 		// 	int exit_status = 0;
-		// 	
+			
 		// 	//si hay un argumento despues de exit...
 		// 	if (args[1] != NULL) {
 		// 		//atoi es magico: si le pasas "123" te da 123, si le pasas "abc" o basura te da 0
 		// 		//que es exactamente lo que pide el guion para fallos
 		// 		exit_status = atoi(args[1]);
 		// 	}
-		// 	
+			
 		// 	//la funcion exit de C termina el programa devolviendo ese valor al sistema operativo
 		// 	exit(exit_status);
 		// }
@@ -279,10 +279,13 @@ int main(void)
 		// 		printf("El comando bgteam requiere dos argumentos\n");
 		// 		continue;
 		// 	}
-		// 
+		
 		// 	//validacion "purista" sin usar break para el examen
 		// 	int es_valido = 1;
 		// 	int i = 0;
+		// 	// bgteam 123n sleep 100
+		// 	//args[1] ="123n"
+		// 	//args[1][3] ="2"
 		// 	//el bucle sigue mientras no lleguemos al final de la palabra Y siga siendo un numero valido
 		// 	while (args[1][i] != '\0' && es_valido == 1) {
 		// 		if (!isdigit(args[1][i])) {
@@ -290,25 +293,25 @@ int main(void)
 		// 		}
 		// 		i++;
 		// 	}
-		// 	
+			
 		// 	if (es_valido == 0) continue; //ignoramos silenciosamente
-		// 
+		
 		// 	//pasamos el texto a numero de verdad
 		// 	int n_jobs = atoi(args[1]);
 		// 	if (n_jobs <= 0) continue; //por si acaso es 0, ignoramos tambien
-		// 
+		
 		// 	//arrancamos la fabrica de hacer forks
 		// 	for (int j = 0; j < n_jobs; j++) {
-		//	//literalmente un copypaste del tratamiento de procesos que hacemos
+		// 	//literalmente un copypaste del tratamiento de procesos que hacemos
 		// 		int pid_hijo_bg = fork();
-		// 
+		
 		// 		if (pid_hijo_bg == 0) {
 		// 			//--- zona del hijo clonado ---
 		// 			setpgid(0, 0); 
 		// 			restore_terminal_signals(); 
-		// 			
+					
 		// 			execvp(args[2], &args[2]);
-		// 			
+					
 		// 			printf("Error, command not found: %s\n", args[2]);
 		// 			exit(-1);
 		// 		} 
